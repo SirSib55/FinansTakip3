@@ -1,0 +1,66 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { Home, PlusCircle, Briefcase, TrendingUp, TrendingDown, Trash2, Calendar, Tag, BarChart2 } from 'lucide-react';
+
+function useLocalStorage(key, initialValue) {
+  const [storedValue, setStoredValue] = useState(() => {
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) { return initialValue; }
+  });
+  useEffect(() => {
+    window.localStorage.setItem(key, JSON.stringify(storedValue));
+  }, [key, storedValue]);
+  return [storedValue, setStoredValue];
+}
+
+export default function App() {
+  const [currentView, setCurrentView] = useState('dashboard');
+  const [transactions, setTransactions] = useLocalStorage('app_transactions', []);
+  const [investments, setInvestments] = useLocalStorage('app_investments', []);
+  const [formData, setFormData] = useState({ type: 'expense', amount: '', category: 'Market', date: new Date().toISOString().split('T')[0], description: '' });
+
+  const { balance, totalIncome, totalExpense } = useMemo(() => {
+    let inc = 0; let exp = 0;
+    transactions.forEach(t => { t.type === 'income' ? inc += t.amount : exp += t.amount; });
+    return { balance: inc - exp, totalIncome: inc, totalExpense: exp };
+  }, [transactions]);
+
+  const handleAddTransaction = (e) => {
+    e.preventDefault();
+    if (!formData.amount || formData.amount <= 0) return;
+    setTransactions([{ id: Date.now(), ...formData, amount: parseFloat(formData.amount) }, ...transactions]);
+    setFormData({ ...formData, amount: '', description: '' });
+    setCurrentView('dashboard');
+  };
+
+  const formatMoney = (val) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(val);
+
+  const renderDashboard = () => (
+    <div className="p-6 pb-24 space-y-6">
+      <h1 className="text-2xl font-bold text-gray-800">Finansal Özet</h1>
+      <div className="bg-blue-600 rounded-3xl p-6 text-white shadow-xl">
+        <p className="text-blue-100 text-sm">Mevcut Bakiye</p>
+        <h2 className="text-4xl font-bold">{formatMoney(balance)}</h2>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-green-100 p-4 rounded-2xl"><p className="text-green-800 text-xs">Gelir</p><p className="font-bold text-green-900">{formatMoney(totalIncome)}</p></div>
+        <div className="bg-red-100 p-4 rounded-2xl"><p className="text-red-800 text-xs">Gider</p><p className="font-bold text-red-900">{formatMoney(totalExpense)}</p></div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="max-w-md mx-auto h-screen bg-gray-50 relative shadow-2xl overflow-hidden font-sans">
+      <div className="h-full overflow-y-auto">
+        {currentView === 'dashboard' && renderDashboard()}
+      </div>
+      
+      <div className="absolute bottom-0 w-full bg-white border-t p-4 flex justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <button onClick={() => setCurrentView('dashboard')} className="p-2 text-gray-500"><Home /></button>
+        <button onClick={() => setCurrentView('add')} className="bg-blue-600 text-white p-4 rounded-full -mt-8 shadow-lg shadow-blue-300"><PlusCircle /></button>
+        <button onClick={() => setCurrentView('list')} className="p-2 text-gray-500"><BarChart2 /></button>
+      </div>
+    </div>
+  );
+}
